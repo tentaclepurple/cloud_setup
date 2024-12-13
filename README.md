@@ -3,10 +3,10 @@
 
 <br>
 
-    wget https://github.com/tentaclepurple/cloud_setup/blob/main/setup.sh
+    wget https://raw.githubusercontent.com/tentaclepurple/cloud_setup/main/setup.sh
 
 <br>
 
-    curl -O https://github.com/tentaclepurple/cloud_setup/blob/main/setup.sh
+    curl -O https://raw.githubusercontent.com/tentaclepurple/cloud_setup/main/setup.sh
 
 
