@@ -34,6 +34,10 @@ create_user
 echo "Añadiendo alias 'py' al archivo .bashrc del usuario actual..."
 echo "alias py='python3'" >> ~/.bashrc
 
+# Install make
+echo "Installing make..."
+sudo apt install make 
+
 # Install Git
 echo "Intalling Git..."
 sudo apt install -y git
