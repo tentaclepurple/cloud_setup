@@ -3,9 +3,10 @@
 
 <br>
 
-    wget https://raw.githubusercontent.com/tu_usuario/tu_repositorio/main/setup.sh
+    wget https://raw.githubusercontent.com/tentaclepurple/cloud_setup/main/setup.sh
 
 <br>
 
-    wget https://raw.githubusercontent.com/tu_usuario/tu_repositorio/main/setup.sh
+    curl -O https://raw.githubusercontent.com/tentaclepurple/cloud_setup/main/setup.sh
+
 

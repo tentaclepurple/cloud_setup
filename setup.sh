@@ -18,6 +18,7 @@ create_user() {
       sudo adduser "$username"
       sudo usermod -aG sudo "$username"
       echo "User $username created with sudo permissions."
+      sudo usermod -aG docker $USER
       
       # Add 'py' alias to the user's .bashrc
       echo "alias py='python3'" | sudo tee -a "/home/$username/.bashrc"
@@ -28,12 +29,14 @@ create_user() {
   fi
 }
 
-# Create a new user with sudo permissions
-create_user
 
 # Add 'py' alias to the current user's .bashrc
 echo "alias py='python3'" >> ~/.bashrc
 echo "PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]' " >> ~/.bashrc
+
+# Install make
+echo "Installing make..."
+sudo apt install make 
 
 # Install Git
 echo "Intalling Git..."
@@ -59,6 +62,9 @@ if docker-compose --version &>/dev/null; then
 else
   echo "Error installing Docker Compose."
 fi
+
+# Create a new user with sudo permissions
+create_user
 
 # Configure Docker to run without sudo
 echo "Setting up Docker to run without sudo..."
