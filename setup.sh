@@ -3,6 +3,7 @@
 # Update and upgrade the system
 echo "Updating and upgrading the system..."
 sudo apt update && sudo apt upgrade -y
+sudo apt install openssh-client openssh-server -y
 
 # Function to create a new user with sudo permissions
 create_user() {
@@ -31,8 +32,8 @@ create_user() {
 create_user
 
 # Add 'py' alias to the current user's .bashrc
-echo "Añadiendo alias 'py' al archivo .bashrc del usuario actual..."
 echo "alias py='python3'" >> ~/.bashrc
+echo "PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]' " >> ~/.bashrc
 
 # Install Git
 echo "Intalling Git..."
