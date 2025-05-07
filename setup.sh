@@ -77,6 +77,8 @@ sudo usermod -aG docker $USER
 # Install other packages
 echo "Installing other packages..."
 sudo apt install -y curl micro unzip
+micro -plugin install filemanager
+
 
 # Finalización
 echo "Setup completed successfully."
