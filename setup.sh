@@ -32,6 +32,10 @@ create_user() {
 
 # Add 'py' alias to the current user's .bashrc
 echo "alias py='python3'" >> ~/.bashrc
+
+echo "parse_git_branch() {
+    git branch 2>/dev/null | grep '\*' | sed 's/* //'
+}" >> ~/.bashrc
 echo "PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]' " >> ~/.bashrc
 
 # Install make
