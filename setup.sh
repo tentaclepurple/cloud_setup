@@ -32,6 +32,7 @@ create_user() {
 
 # Add 'py' alias to the current user's .bashrc
 echo "alias py='python3'" >> ~/.bashrc
+echo "alias dir='ls -la'" >> ~/.bashrc
 
 echo "parse_git_branch() {
     git branch 2>/dev/null | grep '\*' | sed 's/* //'
