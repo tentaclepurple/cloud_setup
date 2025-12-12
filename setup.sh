@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Update and upgrade the system
 echo "Updating and upgrading the system..."
 sudo apt update && sudo apt upgrade -y
@@ -18,33 +17,44 @@ create_user() {
       sudo adduser "$username"
       sudo usermod -aG sudo "$username"
       echo "User $username created with sudo permissions."
-      sudo usermod -aG docker $USER
+      sudo usermod -aG docker "$username"
       
-      # Add 'py' alias to the user's .bashrc
+      # Add aliases to the user's .bashrc
       echo "alias py='python3'" | sudo tee -a "/home/$username/.bashrc"
-      echo "Alias 'py' added to /home/$username/.bashrc."
+      echo "alias dir='ls -la'" | sudo tee -a "/home/$username/.bashrc"
+      
+      # Add git branch function and PS1
+      cat << 'EOF' | sudo tee -a "/home/$username/.bashrc"
+parse_git_branch() {
+    git branch 2>/dev/null | grep '\*' | sed 's/* //'
+}
+PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]'
+EOF
+      echo "Aliases and git prompt added to /home/$username/.bashrc."
     fi
   else
     echo "Omitting user creation."
   fi
 }
 
-
-# Add 'py' alias to the current user's .bashrc
+# Add aliases and git prompt to the current user's .bashrc
 echo "alias py='python3'" >> ~/.bashrc
 echo "alias dir='ls -la'" >> ~/.bashrc
 
-echo "parse_git_branch() {
+# ✅ CORREGIDO: Usar heredoc para evitar problemas con comillas
+cat << 'EOF' >> ~/.bashrc
+parse_git_branch() {
     git branch 2>/dev/null | grep '\*' | sed 's/* //'
-}" >> ~/.bashrc
-echo "PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]' " >> ~/.bashrc
+}
+PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]'
+EOF
 
 # Install make
 echo "Installing make..."
-sudo apt install make 
+sudo apt install -y make
 
 # Install Git
-echo "Intalling Git..."
+echo "Installing Git..."
 sudo apt install -y git
 
 # Install Docker
@@ -80,10 +90,8 @@ echo "Installing other packages..."
 sudo apt install -y curl micro unzip
 micro -plugin install filemanager
 
-
 # Finalización
 echo "Setup completed successfully."
-
 
 # Reboot the system?
 echo "Do you want to reboot the system now? (y/n)"
