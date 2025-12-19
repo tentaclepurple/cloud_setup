@@ -1,35 +1,47 @@
 #!/bin/bash
-# Update and upgrade the system
+
+# Detener el script si hay un error crítico
+set -e
+
+# --- Update and upgrade the system ---
 echo "Updating and upgrading the system..."
 sudo apt update && sudo apt upgrade -y
-sudo apt install openssh-client openssh-server -y
+# Instalamos dependencias básicas necesarias (incluyendo curl para bajar miniforge)
+sudo apt install -y openssh-client openssh-server lsb-release ca-certificates apt-transport-https software-properties-common curl wget git make
 
-# Function to create a new user with sudo permissions
+# --- Configuración del .bashrc (Variable para reutilizar) ---
+CONFIG_BASHRC=$(cat << 'EOF'
+
+# --- Custom Aliases and Prompt ---
+alias py='python3'
+alias dir='ls -la'
+
+parse_git_branch() {
+    git branch 2>/dev/null | grep '\*' | sed 's/* //'
+}
+PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]'
+# ---------------------------------
+EOF
+)
+
+# --- Function to create a new user ---
 create_user() {
   echo "Do you want to create a new user with sudo permissions? (y/n)"
   read -r answer
-  if [[ "$answer" == "y" || "$answer" == "Y" ]]; then
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
     echo "Please enter the username:"
     read -r username
     if id "$username" &>/dev/null; then
       echo "User $username already exists."
     else
+      # Se asume que Docker ya se instaló antes de llamar a esta función
       sudo adduser "$username"
       sudo usermod -aG sudo "$username"
-      echo "User $username created with sudo permissions."
       sudo usermod -aG docker "$username"
+      echo "User $username created with sudo and docker permissions."
       
-      # Add aliases to the user's .bashrc
-      echo "alias py='python3'" | sudo tee -a "/home/$username/.bashrc"
-      echo "alias dir='ls -la'" | sudo tee -a "/home/$username/.bashrc"
-      
-      # Add git branch function and PS1
-      cat << 'EOF' | sudo tee -a "/home/$username/.bashrc"
-parse_git_branch() {
-    git branch 2>/dev/null | grep '\*' | sed 's/* //'
-}
-PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]'
-EOF
+      # Add configuration to the new user's .bashrc
+      echo "$CONFIG_BASHRC" | sudo tee -a "/home/$username/.bashrc" > /dev/null
       echo "Aliases and git prompt added to /home/$username/.bashrc."
     fi
   else
@@ -37,68 +49,78 @@ EOF
   fi
 }
 
-# Add aliases and git prompt to the current user's .bashrc
-echo "alias py='python3'" >> ~/.bashrc
-echo "alias dir='ls -la'" >> ~/.bashrc
+# --- Apply Config to Current User ---
+echo "$CONFIG_BASHRC" >> ~/.bashrc
+echo "Aliases and git prompt added to current user's .bashrc."
 
-# ✅ CORREGIDO: Usar heredoc para evitar problemas con comillas
-cat << 'EOF' >> ~/.bashrc
-parse_git_branch() {
-    git branch 2>/dev/null | grep '\*' | sed 's/* //'
-}
-PS1='\[\e[0;34m\]\h \[\e[1;36m\]\W \[\e[0;32m\]$([[ $(parse_git_branch) ]] && echo "($(parse_git_branch))")\[\e[1;36m\]> \[\e[0m\]'
-EOF
-
-# Install make
-echo "Installing make..."
-sudo apt install -y make
-
-# Install Git
-echo "Installing Git..."
-sudo apt install -y git
-
-# Install Docker
+# --- Install Docker ---
 echo "Installing Docker..."
-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
 sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io
+# Instalamos docker y el plugin moderno de compose
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Install Docker Compose
-echo "Installing Docker Compose..."
-DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
-sudo curl -L "https://github.com/docker/compose/releases/download/$DOCKER_COMPOSE_VERSION/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+# Configure Docker to run without sudo for current user
+echo "Setting up Docker to run without sudo for current user..."
+sudo usermod -aG docker "$USER"
 
-# Verify the installation
-if docker-compose --version &>/dev/null; then
-  echo "Docker Compose installed successfully."
-else
-  echo "Error installing Docker Compose."
+# --- Install Other Packages ---
+echo "Installing other packages (micro, unzip)..."
+sudo apt install -y micro unzip
+
+if command -v micro &> /dev/null; then
+    micro -plugin install filemanager
 fi
 
-# Create a new user with sudo permissions
+# --- Install Miniforge (Conda) ---
+echo "Checking Miniforge installation..."
+# Verificamos si ya existe para no reinstalar encima
+if [ ! -d "$HOME/miniforge3" ]; then
+    echo "Downloading and Installing Miniforge..."
+    
+    # Nombre dinámico del archivo basado en el sistema (ej: Miniforge3-Linux-x86_64.sh)
+    MINIFORGE_FILE="Miniforge3-$(uname)-$(uname -m).sh"
+    MINIFORGE_URL="https://github.com/conda-forge/miniforge/releases/latest/download/$MINIFORGE_FILE"
+    
+    # Descargar
+    curl -L -O "$MINIFORGE_URL"
+    
+    # Instalar:
+    # -b: Batch mode (sin preguntas, acepta licencia auto)
+    # -p: Path (ruta de instalación)
+    bash "$MINIFORGE_FILE" -b -p "$HOME/miniforge3"
+    
+    # Borrar el instalador
+    rm "$MINIFORGE_FILE"
+    
+    # Inicializar conda para bash
+    "$HOME/miniforge3/bin/conda" init bash
+    
+    # Configuración opcional: No activar 'base' por defecto al abrir terminal
+    "$HOME/miniforge3/bin/conda" config --set auto_activate_base false
+    
+    echo "Miniforge installed successfully in $HOME/miniforge3"
+else
+    echo "Miniforge directory ($HOME/miniforge3) already exists. Skipping."
+fi
+
+# --- Create User Step ---
+# Llamamos a esto al final para que no interfiera con las instalaciones del usuario actual
 create_user
 
-# Configure Docker to run without sudo
-echo "Setting up Docker to run without sudo..."
-sudo usermod -aG docker $USER
-
-# Install other packages
-echo "Installing other packages..."
-sudo apt install -y curl micro unzip
-micro -plugin install filemanager
-
-# Finalización
+# --- Finalization ---
 echo "Setup completed successfully."
-
-# Reboot the system?
 echo "Do you want to reboot the system now? (y/n)"
 read -r respuesta
-if [[ "$respuesta" == "y" || "$respuesta" == "Y" ]]; then
-  echo "System rebooting... Connect again in a few seconds."
+if [[ "$respuesta" =~ ^[Yy]$ ]]; then
+  echo "System rebooting..."
   sudo reboot
 else
-  echo "Reboot the system to apply the changes."
+  echo "PLEASE NOTE: You must log out and log back in (or run 'source ~/.bashrc') to use Conda and Docker."
 fi
